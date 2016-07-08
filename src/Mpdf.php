@@ -28703,168 +28703,9 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 			}
 		}
 
-
 		// Bottom NUMERALS
 		if ($this->showBarcodeNumbers) {
-			// mPDF 5.7.4
-			if ($this->onlyCoreFonts) {
-				$this->SetFont('ccourier');
-				$fh = 1.3;
-			} else {
-				$this->SetFont('ocrb');
-				$fh = 1.06;
-			}
-			$charRO = '';
-			if ($btype == 'EAN13' || $btype == 'ISBN' || $btype == 'ISSN') {
-				$outerfontsize = 3; // Inner fontsize = 3
-				$outerp = $xres * 4;
-				$innerp = $xres * 2.5;
-				$textw = ($bcw * 0.5) - $outerp - $innerp;
-				$chars = 6; // number of numerals in each half
-				$charLO = substr($code, 0, 1); // Left Outer
-				$charLI = substr($code, 1, 6); // Left Inner
-				$charRI = substr($code, 7, 6); // Right Inner
-				if (!$supplement)
-					$charRO = '>'; // Right Outer
-			}
-			elseif ($btype == 'UPCA') {
-				$outerfontsize = 2.3; // Inner fontsize = 3
-				$outerp = $xres * 10;
-				$innerp = $xres * 2.5;
-				$textw = ($bcw * 0.5) - $outerp - $innerp;
-				$chars = 5;
-				$charLO = substr($code, 0, 1); // Left Outer
-				$charLI = substr($code, 1, 5); // Left Inner
-				$charRI = substr($code, 6, 5); // Right Inner
-				$charRO = substr($code, 11, 1); // Right Outer
-			} elseif ($btype == 'UPCE') {
-				$outerfontsize = 2.3; // Inner fontsize = 3
-				$outerp = $xres * 4;
-				$innerp = 0;
-				$textw = ($bcw * 0.5) - $outerp - $innerp;
-				$chars = 3;
-				$upce_code = $arrcode['code'];
-				$charLO = substr($code, 0, 1); // Left Outer
-				$charLI = substr($upce_code, 0, 3); // Left Inner
-				$charRI = substr($upce_code, 3, 3); // Right Inner
-				$charRO = substr($code, 11, 1); // Right Outer
-			} elseif ($btype == 'EAN8') {
-				$outerfontsize = 3; // Inner fontsize = 3
-				$outerp = $xres * 4;
-				$innerp = $xres * 2.5;
-				$textw = ($bcw * 0.5) - $outerp - $innerp;
-				$chars = 4;
-				$charLO = '<'; // Left Outer
-				$charLI = substr($code, 0, 4); // Left Inner
-				$charRI = substr($code, 4, 4); // Right Inner
-				if (!$supplement)
-					$charRO = '>'; // Right Outer
-			}
-
-			$this->SetFontSize(($outerfontsize / 3) * 3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
-
-			if (!$this->usingCoreFont) {
-				$cw = $this->_getCharWidth($this->CurrentFont['cw'], 32) * 3 * $fh * $size / 1000;
-			} // character width at 3mm
-			else {
-				$cw = 600 * 3 * $fh * $size / 1000;
-			} // mPDF 5.7.4
-			// Outer left character
-			$y_text = $y + $paddingT + $bch - ($num_height / 2);
-			$y_text_outer = $y + $paddingT + $bch - ($num_height * ($outerfontsize / 3) / 2);
-
-			$this->x = $x + $paddingL - ($cw * ($outerfontsize / 3) * 0.1); // 0.1 is correction as char does not fill full width;
-			$this->y = $y_text_outer;
-			$this->Cell($cw, $num_height, $charLO);
-
-			// WORD SPACING for inner chars
-			$xtra = $textw - ($cw * $chars);
-			$charspacing = $xtra / ($chars - 1);
-			if ($charspacing) {
-				$this->_out(sprintf('BT %.3F Tc ET', $charspacing * Mpdf::SCALE));
-			}
-
-			if ($bgcol) {
-				$this->SetFColor($bgcol);
-			} else {
-				$this->SetFColor($this->colorConvertor->convert(255, $this->PDFAXwarnings));
-			}
-
-			$this->SetFontSize(3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
-			// Inner left half characters
-			$this->x = $x + $paddingL + $llm + $outerp;
-			$this->y = $y_text;
-			$this->Cell($textw, $num_height, $charLI, 0, 0, '', 1);
-
-			// Inner right half characters
-			$this->x = $x + $paddingL + $llm + ($bcw * 0.5) + $innerp;
-			$this->y = $y_text;
-			$this->Cell($textw, $num_height, $charRI, 0, 0, '', 1);
-
-			if ($charspacing) {
-				$this->_out('BT 0 Tc ET');
-			}
-
-			// Outer Right character
-			$this->SetFontSize(($outerfontsize / 3) * 3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
-
-			$this->x = $x + $paddingL + $llm + $bcw + $rlm - ($cw * ($outerfontsize / 3) * 0.9); // 0.9 is correction as char does not fill full width
-			$this->y = $y_text_outer;
-			$this->Cell($cw * ($outerfontsize / 3), $num_height, $charRO, 0, 0, 'R');
-
-			if ($supplement) { // EAN-2 or -5 Supplement
-				// PRINT BARS
-				$supparrcode = $this->barcode->getBarcodeArray($supplement_code, 'EAN' . $supplement);
-				if ($supparrcode === false) {
-					throw new MpdfException('Error in barcode string (supplement): ' . $codestr . ' ' . $supplement_code);
-				}
-				if (strlen($supplement_code) != $supplement) {
-					throw new MpdfException('Barcode supplement incorrect: ' . $supplement_code);
-				}
-				$llm = $fbw - (($arrcode['lightmR'] - $supparrcode['sepM']) * $arrcode['nom-X'] * $size); // Left Light margin
-				$rlm = $arrcode['lightmR'] * $arrcode['nom-X'] * $size; // Right Light margin
-
-				$bcw = ($supparrcode["maxw"] * $xres); // Barcode width = Should always be 31.35mm * $size
-
-				$fbw = $bcw + $llm + $rlm; // Full barcode width incl. light margins
-				$ow = $fbw + $paddingL + $paddingR; // Full overall width incl. user-defined padding
-				$bch = $fbh - (1.5 * $size) - ($num_height + 0.5);  // Barcode height of bars	 (3mm for numerals)
-
-				$xpos = $x + $paddingL + $llm;
-				$ypos = $y + $paddingT + $num_height + 0.5;
-				if ($col) {
-					$this->SetFColor($col);
-				} else {
-					$this->SetFColor($this->colorConvertor->convert(0, $this->PDFAXwarnings));
-				}
-				if ($supparrcode !== false) {
-					foreach ($supparrcode["bcode"] AS $v) {
-						$bw = ($v["w"] * $xres);
-						if ($v["t"]) {
-							// draw a vertical bar
-							$this->Rect($xpos, $ypos, $bw, $bch, 'F');
-						}
-						$xpos += $bw;
-					}
-				}
-
-				// Characters
-				if ($bgcol) {
-					$this->SetFColor($bgcol);
-				} else {
-					$this->SetFColor($this->colorConvertor->convert(255, $this->PDFAXwarnings));
-				}
-				$this->SetFontSize(3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
-				$this->x = $x + $paddingL + $llm;
-				$this->y = $y + $paddingT;
-				$this->Cell($bcw, $num_height, $supplement_code, 0, 0, 'C');
-
-				// Outer Right character (light margin)
-				$this->SetFontSize(($outerfontsize / 3) * 3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
-				$this->x = $x + $paddingL + $llm + $bcw + $rlm - ($cw * 0.9); // 0.9 is correction as char does not fill full width
-				$this->y = $y + $paddingT;
-				$this->Cell($cw * ($outerfontsize / 3), $num_height, '>', 0, 0, 'R');
-			}
+			$this->writeBarcodeNumbers($bch, $bcw, $bgcol, $btype, $charLI, $charLO, $charRI, $chars, $innerp, $llm, $num_height, $outerfontsize, $outerp, $paddingL, $paddingT, $rlm, $size, $supplement, $textw, $x, $y);
 		}
 
 
@@ -28875,6 +28716,182 @@ class Mpdf implements \Psr\Log\LoggerAwareInterface
 		$this->FillColor = $prevFillColor;
 		$this->SetLineWidth($lw);
 		$this->SetY($y);
+	}
+
+	private function writeBarcodeNumbers($bch, $bcw, $bgcol, $btype, $charLI, $charLO, $charRI, $chars, $innerp, $llm, $num_height, $outerfontsize, $outerp, $paddingL, $paddingT, $rlm, $size, $supplement, $textw, $x, $y)
+	{
+		// mPDF 5.7.4
+		if ($this->onlyCoreFonts) {
+			$this->SetFont('ccourier');
+			$fh = 1.3;
+		} else {
+			$this->SetFont('ocrb');
+			$fh = 1.06;
+		}
+
+		$charRO = '';
+
+		if ($btype == 'EAN13' || $btype == 'ISBN' || $btype == 'ISSN') {
+
+			$outerfontsize = 3; // Inner fontsize = 3
+			$outerp = $xres * 4;
+			$innerp = $xres * 2.5;
+			$textw = ($bcw * 0.5) - $outerp - $innerp;
+			$chars = 6; // number of numerals in each half
+			$charLO = substr($code, 0, 1); // Left Outer
+			$charLI = substr($code, 1, 6); // Left Inner
+			$charRI = substr($code, 7, 6); // Right Inner
+
+			if (!$supplement) {
+				$charRO = '>'; // Right Outer
+			}
+
+		} elseif ($btype == 'UPCA') {
+
+			$outerfontsize = 2.3; // Inner fontsize = 3
+			$outerp = $xres * 10;
+			$innerp = $xres * 2.5;
+			$textw = ($bcw * 0.5) - $outerp - $innerp;
+			$chars = 5;
+			$charLO = substr($code, 0, 1); // Left Outer
+			$charLI = substr($code, 1, 5); // Left Inner
+			$charRI = substr($code, 6, 5); // Right Inner
+			$charRO = substr($code, 11, 1); // Right Outer
+
+		} elseif ($btype == 'UPCE') {
+
+			$outerfontsize = 2.3; // Inner fontsize = 3
+			$outerp = $xres * 4;
+			$innerp = 0;
+			$textw = ($bcw * 0.5) - $outerp - $innerp;
+			$chars = 3;
+			$upce_code = $arrcode['code'];
+			$charLO = substr($code, 0, 1); // Left Outer
+			$charLI = substr($upce_code, 0, 3); // Left Inner
+			$charRI = substr($upce_code, 3, 3); // Right Inner
+			$charRO = substr($code, 11, 1); // Right Outer
+
+		} elseif ($btype == 'EAN8') {
+			$outerfontsize = 3; // Inner fontsize = 3
+			$outerp = $xres * 4;
+			$innerp = $xres * 2.5;
+			$textw = ($bcw * 0.5) - $outerp - $innerp;
+			$chars = 4;
+			$charLO = '<'; // Left Outer
+			$charLI = substr($code, 0, 4); // Left Inner
+			$charRI = substr($code, 4, 4); // Right Inner
+			if (!$supplement) {
+				$charRO = '>'; // Right Outer
+			}
+		}
+
+		// 3mm numerals (FontSize is larger to account for space above/below characters)
+		$this->SetFontSize(($outerfontsize / 3) * 3 * $fh * $size * Mpdf::SCALE);
+
+		// mPDF 5.7.4
+		if (!$this->usingCoreFont) {
+			$cw = $this->_getCharWidth($this->CurrentFont['cw'], 32) * 3 * $fh * $size / 1000;
+		} else {
+			// character width at 3mm
+			$cw = 600 * 3 * $fh * $size / 1000;
+		}
+
+		// Outer left character
+		$y_text = $y + $paddingT + $bch - ($num_height / 2);
+		$y_text_outer = $y + $paddingT + $bch - ($num_height * ($outerfontsize / 3) / 2);
+
+		$this->x = $x + $paddingL - ($cw * ($outerfontsize / 3) * 0.1); // 0.1 is correction as char does not fill full width;
+		$this->y = $y_text_outer;
+		$this->Cell($cw, $num_height, $charLO);
+
+		// WORD SPACING for inner chars
+		$xtra = $textw - ($cw * $chars);
+		$charspacing = $xtra / ($chars - 1);
+		if ($charspacing) {
+			$this->_out(sprintf('BT %.3F Tc ET', $charspacing * Mpdf::SCALE));
+		}
+
+		if ($bgcol) {
+			$this->SetFColor($bgcol);
+		} else {
+			$this->SetFColor($this->colorConvertor->convert(255, $this->PDFAXwarnings));
+		}
+
+		$this->SetFontSize(3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
+		// Inner left half characters
+		$this->x = $x + $paddingL + $llm + $outerp;
+		$this->y = $y_text;
+		$this->Cell($textw, $num_height, $charLI, 0, 0, '', 1);
+
+		// Inner right half characters
+		$this->x = $x + $paddingL + $llm + ($bcw * 0.5) + $innerp;
+		$this->y = $y_text;
+		$this->Cell($textw, $num_height, $charRI, 0, 0, '', 1);
+
+		if ($charspacing) {
+			$this->_out('BT 0 Tc ET');
+		}
+
+		// Outer Right character
+		$this->SetFontSize(($outerfontsize / 3) * 3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
+
+		$this->x = $x + $paddingL + $llm + $bcw + $rlm - ($cw * ($outerfontsize / 3) * 0.9); // 0.9 is correction as char does not fill full width
+		$this->y = $y_text_outer;
+		$this->Cell($cw * ($outerfontsize / 3), $num_height, $charRO, 0, 0, 'R');
+
+		if ($supplement) { // EAN-2 or -5 Supplement
+			// PRINT BARS
+			$supparrcode = $this->barcode->getBarcodeArray($supplement_code, 'EAN' . $supplement);
+			if ($supparrcode === false) {
+				throw new MpdfException('Error in barcode string (supplement): ' . $codestr . ' ' . $supplement_code);
+			}
+			if (strlen($supplement_code) != $supplement) {
+				throw new MpdfException('Barcode supplement incorrect: ' . $supplement_code);
+			}
+			$llm = $fbw - (($arrcode['lightmR'] - $supparrcode['sepM']) * $arrcode['nom-X'] * $size); // Left Light margin
+			$rlm = $arrcode['lightmR'] * $arrcode['nom-X'] * $size; // Right Light margin
+
+			$bcw = ($supparrcode["maxw"] * $xres); // Barcode width = Should always be 31.35mm * $size
+
+			$fbw = $bcw + $llm + $rlm; // Full barcode width incl. light margins
+			$ow = $fbw + $paddingL + $paddingR; // Full overall width incl. user-defined padding
+			$bch = $fbh - (1.5 * $size) - ($num_height + 0.5);  // Barcode height of bars	 (3mm for numerals)
+
+			$xpos = $x + $paddingL + $llm;
+			$ypos = $y + $paddingT + $num_height + 0.5;
+			if ($col) {
+				$this->SetFColor($col);
+			} else {
+				$this->SetFColor($this->colorConvertor->convert(0, $this->PDFAXwarnings));
+			}
+			if ($supparrcode !== false) {
+				foreach ($supparrcode["bcode"] AS $v) {
+					$bw = ($v["w"] * $xres);
+					if ($v["t"]) {
+						// draw a vertical bar
+						$this->Rect($xpos, $ypos, $bw, $bch, 'F');
+					}
+					$xpos += $bw;
+				}
+			}
+
+			// Characters
+			if ($bgcol) {
+				$this->SetFColor($bgcol);
+			} else {
+				$this->SetFColor($this->colorConvertor->convert(255, $this->PDFAXwarnings));
+			}
+			$this->SetFontSize(3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
+			$this->x = $x + $paddingL + $llm;
+			$this->y = $y + $paddingT;
+			$this->Cell($bcw, $num_height, $supplement_code, 0, 0, 'C');
+
+			// Outer Right character (light margin)
+			$this->SetFontSize(($outerfontsize / 3) * 3 * $fh * $size * Mpdf::SCALE); // 3mm numerals (FontSize is larger to account for space above/below characters)
+			$this->x = $x + $paddingL + $llm + $bcw + $rlm - ($cw * 0.9); // 0.9 is correction as char does not fill full width
+			$this->y = $y + $paddingT;
+			$this->Cell($cw * ($outerfontsize / 3), $num_height, '>', 0, 0, 'R');
+		}
 	}
 
 	// ====================================================
